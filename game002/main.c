@@ -27,6 +27,12 @@ typedef struct
 
 typedef struct
 {
+    Zombie *zombies[MAX_BULLETS];
+    int count;
+} ZombieManager;
+
+typedef struct
+{
     Vector2 pos;
     Vector2 velocity;
     float speed;
@@ -37,7 +43,7 @@ typedef struct
 typedef struct
 {
     Bullet *bullets[MAX_BULLETS];
-    int bulletCount;
+    int count;
 } BulletManager;
 
 float playerMouseAngle(Vector2 *p1, Vector2 *p2)
@@ -49,9 +55,48 @@ float playerMouseAngle(Vector2 *p1, Vector2 *p2)
 
 void addBullet(BulletManager *bulletManager, Bullet *bullet)
 {
-    bulletManager->bullets[bulletManager->bulletCount] = bullet;
-    bulletManager->bulletCount++;
-    printf("bullet count is %d\n", bulletManager->bulletCount);
+    bulletManager->bullets[bulletManager->count] = bullet;
+    bulletManager->count++;
+    printf("bullet count is %d\n", bulletManager->count);
+}
+
+void setActive(Bullet *bullet, int screenWidth, int screenHeight)
+{
+    if (bullet->pos.x < 0 || bullet->pos.y < 0 || bullet->pos.x > screenWidth || bullet->pos.y > screenHeight)
+    {
+        bullet->active = false;
+        printf("bullet %p was set to inactive\n", (void *)bullet);
+    }
+}
+
+void removeInactiveBullets(BulletManager *bulletManager, int screenWidth, int screenHeight)
+{
+    int activeBulletCount = 0;
+    for (int i = 0; i < bulletManager->count; i++)
+    {
+        Bullet *bullet = bulletManager->bullets[i];
+        setActive(bullet, screenWidth, screenHeight);
+        if (bullet->active)
+        {
+            if (activeBulletCount != i)
+            {
+                Bullet *bulletToFree = bulletManager->bullets[activeBulletCount];
+                bulletManager->bullets[activeBulletCount] = bullet;
+                bulletManager->bullets[i] = bulletToFree;
+            }
+            activeBulletCount++;
+        }
+    }
+    for (int i = activeBulletCount; i < bulletManager->count; i++)
+    {
+        Bullet *bullet = bulletManager->bullets[i];
+        if (bullet != NULL && !bullet->active)
+        {
+            free(bullet);
+            printf("bullet %p was removed\n", (void *)bullet);
+        }
+    }
+    bulletManager->count = activeBulletCount;
 }
 
 int main(void)
@@ -101,7 +146,10 @@ int main(void)
     targetSize.y = targetTexture.height / 2;
 
     BulletManager bulletManager;
-    bulletManager.bulletCount = 0;
+    bulletManager.count = 0;
+
+    BulletManager zombieManager;
+    zombieManager.count = 0;
 
     HideCursor();
     while (!WindowShouldClose())
@@ -129,7 +177,35 @@ int main(void)
             player.posCircle.y -= player.speed * dt;
         }
 
-        for (int i = 0; i < bulletManager.bulletCount; i++)
+        if (player.posCircle.x - player.radius < 0)
+        {
+            player.posCircle.x = player.radius + 1;
+        }
+        if (player.posCircle.y - player.radius < 0)
+        {
+            player.posCircle.y = player.radius + 1;
+        }
+        if (player.posCircle.x + player.radius > screenWidth)
+        {
+            player.posCircle.x = screenWidth - player.radius - 1;
+        }
+        if (player.posCircle.y + player.radius > screenHeight)
+        {
+            player.posCircle.y = screenHeight - player.radius - 1;
+        }
+
+        for (int i = 0; i < bulletManager.count; i++)
+        {
+            Bullet *bullet = bulletManager.bullets[i];
+            if (bullet->pos.x < 0 || bullet->pos.y < 0 || bullet->pos.x > screenWidth || bullet->pos.y > screenHeight)
+            {
+                bullet->active = false;
+            }
+        }
+
+        removeInactiveBullets(&bulletManager, screenWidth, screenHeight);
+
+        for (int i = 0; i < bulletManager.count; i++)
         {
             if (!bulletManager.bullets[i]->active)
                 continue;
@@ -142,7 +218,7 @@ int main(void)
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            if (bulletManager.bulletCount < MAX_BULLETS)
+            if (bulletManager.count < MAX_BULLETS)
             {
                 Bullet *bullet = malloc(sizeof(Bullet));
                 if (bullet == NULL)
@@ -150,12 +226,14 @@ int main(void)
                     printf("Failed to allocate memory for new bullet\n");
                     return 1;
                 }
+                double cosMouse = cos(mouseAngleRadians);
+                double sinMouse = sin(mouseAngleRadians);
                 bullet->active = true;
                 bullet->pos.x = player.posCircle.x;
                 bullet->pos.y = player.posCircle.y;
-                bullet->speed = 300;
-                bullet->velocity.x = cos(mouseAngleRadians) * bullet->speed;
-                bullet->velocity.y = sin(mouseAngleRadians) * bullet->speed;
+                bullet->speed = 1000;
+                bullet->velocity.x = cosMouse * bullet->speed;
+                bullet->velocity.y = sinMouse * bullet->speed;
                 bullet->angle = mouseAngleDegrees + 90;
                 addBullet(&bulletManager, bullet);
             }
@@ -180,7 +258,7 @@ int main(void)
             mouseAngleDegrees,
             WHITE);
 
-        for (int i = 0; i < bulletManager.bulletCount; i++)
+        for (int i = 0; i < bulletManager.count; i++)
         {
             if (!bulletManager.bullets[i]->active)
                 continue;

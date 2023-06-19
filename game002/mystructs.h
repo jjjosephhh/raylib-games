@@ -43,4 +43,8 @@ typedef struct
 {
     Bullet *bullets[MAX_BULLETS];
     int count;
+    float width;
+    float height;
+    int screenWidth;
+    int screenHeight;
 } BulletManager;

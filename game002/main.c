@@ -1,4 +1,3 @@
-#include "raylib.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +28,7 @@ void addBullet(BulletManager *bulletManager, Bullet *bullet)
     bulletManager->count++;
 }
 
-void setActive(Bullet *bullet, int screenWidth, int screenHeight)
+void deactivateIfOutOfBounds(Bullet *bullet, int screenWidth, int screenHeight)
 {
     if (bullet->pos.x < 0 || bullet->pos.y < 0 || bullet->pos.x > screenWidth || bullet->pos.y > screenHeight)
     {
@@ -37,13 +36,42 @@ void setActive(Bullet *bullet, int screenWidth, int screenHeight)
     }
 }
 
-void removeInactiveBullets(BulletManager *bulletManager, int screenWidth, int screenHeight)
+float calcDist(Vector2 *p1, Vector2 *p2)
 {
+    float deltaX = p2->x - p1->x;
+    float deltaY = p2->y - p1->y;
+    return sqrt(deltaX * deltaX + deltaY * deltaY);
+}
+
+int removeInactiveBullets(ZombieManager *zombieManager, BulletManager *bulletManager)
+{
+
     int activeBulletCount = 0;
     for (int i = 0; i < bulletManager->count; i++)
     {
         Bullet *bullet = bulletManager->bullets[i];
-        setActive(bullet, screenWidth, screenHeight);
+        if (bullet == NULL)
+            continue;
+        deactivateIfOutOfBounds(
+            bullet,
+            bulletManager->screenWidth,
+            bulletManager->screenHeight);
+
+        for (int j = 0; j < zombieManager->count; j++)
+        {
+            Zombie *zombie = zombieManager->zombies[j];
+            if (zombie == NULL || !zombie->active)
+                continue;
+            float distBtw = calcDist(
+                &zombie->posCircle,
+                &bullet->pos);
+            if (distBtw < (bulletManager->width / 2 + zombieManager->width / 2))
+            {
+                zombie->active = false;
+                bullet->active = false;
+            }
+        }
+
         if (bullet->active)
         {
             if (activeBulletCount != i)
@@ -64,6 +92,35 @@ void removeInactiveBullets(BulletManager *bulletManager, int screenWidth, int sc
         }
     }
     bulletManager->count = activeBulletCount;
+
+    int activeZombieCount = 0;
+    for (int i = 0; i < zombieManager->count; i++)
+    {
+        Zombie *zombie = zombieManager->zombies[i];
+        if (zombie->active)
+        {
+            if (activeZombieCount != i)
+            {
+                Zombie *zombieToFree = zombieManager->zombies[activeZombieCount];
+                zombieManager->zombies[activeZombieCount] = zombie;
+                zombieManager->zombies[i] = zombieToFree;
+            }
+            activeZombieCount++;
+        }
+    }
+
+    for (int i = activeZombieCount; i < zombieManager->count; i++)
+    {
+        Zombie *zombie = zombieManager->zombies[i];
+        if (zombie != NULL && !zombie->active)
+        {
+            free(zombie);
+        }
+    }
+
+    int zombiesKilled = zombieManager->count - activeZombieCount;
+    zombieManager->count = activeZombieCount;
+    return zombiesKilled;
 }
 
 void addZombie(ZombieManager *zombieManager, int screenWidth, int screenHeight)
@@ -79,22 +136,32 @@ void addZombie(ZombieManager *zombieManager, int screenWidth, int screenHeight)
     int side = getRandInt(1, 4);
     if (side == 1)
     {
+        zombie->posCircle.x = getRandInt(
+            zombieManager->width / 2,
+            zombieManager->screenWidth - zombieManager->width / 2);
+        zombie->posCircle.y = -zombieManager->height / 2;
     }
     else if (side == 2)
     {
+        zombie->posCircle.x = -zombieManager->width / 2;
+        zombie->posCircle.y = getRandInt(
+            zombieManager->height / 2,
+            zombieManager->screenHeight - zombieManager->height / 2);
     }
     else if (side == 3)
     {
+        zombie->posCircle.x = getRandInt(
+            zombieManager->width / 2,
+            zombieManager->screenWidth - zombieManager->width / 2);
+        zombie->posCircle.y = zombieManager->screenHeight + zombieManager->height / 2;
     }
     else if (side == 4)
     {
+        zombie->posCircle.x = zombieManager->screenWidth + zombieManager->width / 2;
+        zombie->posCircle.y = getRandInt(
+            zombieManager->height / 2,
+            zombieManager->screenHeight - zombieManager->height / 2);
     }
-
-    float radius = zombieManager->width / 2 + 7;
-    zombie->posCircle.x = getRandInt(radius, zombieManager->screenWidth - radius);
-    zombie->posCircle.y = getRandInt(radius, zombieManager->screenHeight - radius);
-    // zombie->posCircle.x = screenWidth / 2 + 200;
-    // zombie->posCircle.y = screenHeight / 2 + 200;
     zombie->posTexture.x = zombie->posCircle.x - zombieManager->width / 2;
     zombie->posTexture.y = zombie->posCircle.y - zombieManager->height / 2;
     zombie->radius = zombieManager->width / 2 + 7;
@@ -109,6 +176,7 @@ int main(void)
     const int screenHeight = 1000;
     InitWindow(screenWidth, screenHeight, "Zombie Shooter Game");
     SetTargetFPS(60);
+    InitAudioDevice();
 
     // initialize resources
     Image playerImage = LoadImage("resources/icons8-gun-100.png");
@@ -128,6 +196,10 @@ int main(void)
     ImageResize(&bulletImage, 25, 25);
     Texture2D bulletTexture = LoadTextureFromImage(bulletImage);
     UnloadImage(bulletImage);
+
+    Sound hitSound = LoadSound("resources/mixkit-boxer-getting-hit-2055.wav");
+    Sound bloodSound = LoadSound("resources/mixkit-game-blood-pop-slide-2363.wav");
+    Sound gunSound = LoadSound("resources/mixkit-small-hit-in-a-game-2072.wav");
 
     // initialize entities
     Player player;
@@ -151,6 +223,10 @@ int main(void)
 
     BulletManager bulletManager;
     bulletManager.count = 0;
+    bulletManager.width = bulletTexture.width;
+    bulletManager.height = bulletTexture.height;
+    bulletManager.screenWidth = screenWidth;
+    bulletManager.screenHeight = screenHeight;
 
     ZombieManager zombieManager;
     zombieManager.count = 0;
@@ -219,7 +295,15 @@ int main(void)
             }
         }
 
-        removeInactiveBullets(&bulletManager, screenWidth, screenHeight);
+        int zombiesKilled = removeInactiveBullets(
+            &zombieManager,
+            &bulletManager);
+
+        if (zombiesKilled > 0)
+        {
+            PlaySound(hitSound);
+            PlaySound(bloodSound);
+        }
 
         for (int i = 0; i < bulletManager.count; i++)
         {
@@ -252,6 +336,7 @@ int main(void)
         {
             if (bulletManager.count < MAX_BULLETS)
             {
+                PlaySound(gunSound);
                 Bullet *bullet = malloc(sizeof(Bullet));
                 if (bullet == NULL)
                 {
@@ -345,6 +430,12 @@ int main(void)
     UnloadTexture(zombieTexture);
     UnloadTexture(targetTexture);
     UnloadTexture(bulletTexture);
+
+    UnloadSound(hitSound);
+    UnloadSound(bloodSound);
+    UnloadSound(gunSound);
+
+    CloseAudioDevice();
     CloseWindow();
     return 0;
 }

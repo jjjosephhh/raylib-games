@@ -2,49 +2,19 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#define MAX_BULLETS 100
+#include "constants.h"
+#include "mystructs.h"
 
 enum GameState
 {
     MENU,
     PLAY
 };
-typedef struct
-{
-    Vector2 posTexture;
-    Vector2 posCircle;
-    float radius;
-    float speed;
-} Player;
 
-typedef struct
+int getRandInt(int min, int max)
 {
-    Vector2 posTexture;
-    Vector2 posCircle;
-    float radius;
-} Zombie;
-
-typedef struct
-{
-    Zombie *zombies[MAX_BULLETS];
-    int count;
-} ZombieManager;
-
-typedef struct
-{
-    Vector2 pos;
-    Vector2 velocity;
-    float speed;
-    double angle;
-    bool active;
-} Bullet;
-
-typedef struct
-{
-    Bullet *bullets[MAX_BULLETS];
-    int count;
-} BulletManager;
+    return min + rand() % (max - min + 1);
+}
 
 float playerMouseAngle(Vector2 *p1, Vector2 *p2)
 {
@@ -57,7 +27,6 @@ void addBullet(BulletManager *bulletManager, Bullet *bullet)
 {
     bulletManager->bullets[bulletManager->count] = bullet;
     bulletManager->count++;
-    printf("bullet count is %d\n", bulletManager->count);
 }
 
 void setActive(Bullet *bullet, int screenWidth, int screenHeight)
@@ -65,7 +34,6 @@ void setActive(Bullet *bullet, int screenWidth, int screenHeight)
     if (bullet->pos.x < 0 || bullet->pos.y < 0 || bullet->pos.x > screenWidth || bullet->pos.y > screenHeight)
     {
         bullet->active = false;
-        printf("bullet %p was set to inactive\n", (void *)bullet);
     }
 }
 
@@ -93,10 +61,46 @@ void removeInactiveBullets(BulletManager *bulletManager, int screenWidth, int sc
         if (bullet != NULL && !bullet->active)
         {
             free(bullet);
-            printf("bullet %p was removed\n", (void *)bullet);
         }
     }
     bulletManager->count = activeBulletCount;
+}
+
+void addZombie(ZombieManager *zombieManager, int screenWidth, int screenHeight)
+{
+    printf("inside the addZombie function\n");
+
+    if (zombieManager->count >= MAX_ZOMBIES)
+    {
+        return;
+    }
+    Zombie *zombie = malloc(sizeof(Zombie));
+
+    int side = getRandInt(1, 4);
+    if (side == 1)
+    {
+    }
+    else if (side == 2)
+    {
+    }
+    else if (side == 3)
+    {
+    }
+    else if (side == 4)
+    {
+    }
+
+    float radius = zombieManager->width / 2 + 7;
+    zombie->posCircle.x = getRandInt(radius, zombieManager->screenWidth - radius);
+    zombie->posCircle.y = getRandInt(radius, zombieManager->screenHeight - radius);
+    // zombie->posCircle.x = screenWidth / 2 + 200;
+    // zombie->posCircle.y = screenHeight / 2 + 200;
+    zombie->posTexture.x = zombie->posCircle.x - zombieManager->width / 2;
+    zombie->posTexture.y = zombie->posCircle.y - zombieManager->height / 2;
+    zombie->radius = zombieManager->width / 2 + 7;
+    zombie->active = true;
+    zombieManager->zombies[zombieManager->count] = zombie;
+    zombieManager->count++;
 }
 
 int main(void)
@@ -148,14 +152,26 @@ int main(void)
     BulletManager bulletManager;
     bulletManager.count = 0;
 
-    BulletManager zombieManager;
+    ZombieManager zombieManager;
     zombieManager.count = 0;
+    zombieManager.width = zombieTexture.width;
+    zombieManager.height = zombieTexture.height;
+    zombieManager.screenWidth = screenWidth;
+    zombieManager.screenHeight = screenHeight;
+
+    float timer = MAX_TIME;
 
     HideCursor();
     while (!WindowShouldClose())
     {
         Vector2 mousePos = GetMousePosition();
         float dt = GetFrameTime();
+        timer -= dt;
+        if (timer <= 0)
+        {
+            timer = MAX_TIME;
+            addZombie(&zombieManager, screenWidth, screenHeight);
+        }
 
         if (IsKeyDown(KEY_D))
         {
@@ -211,6 +227,22 @@ int main(void)
                 continue;
             bulletManager.bullets[i]->pos.x += bulletManager.bullets[i]->velocity.x * dt;
             bulletManager.bullets[i]->pos.y += bulletManager.bullets[i]->velocity.y * dt;
+        }
+
+        for (int i = 0; i < zombieManager.count; i++)
+        {
+            if (!zombieManager.zombies[i]->active)
+                continue;
+
+            float playerZombieAngleRadians = playerMouseAngle(&player.posCircle, &zombieManager.zombies[i]->posCircle);
+            double cosPlayerZombie = cos(playerZombieAngleRadians);
+            double sinPlayerZombie = sin(playerZombieAngleRadians);
+            float velocityX = -cosPlayerZombie * SPEED_ZOMBIE;
+            float velocityY = -sinPlayerZombie * SPEED_ZOMBIE;
+            double playerZombieAngleDegrees = playerZombieAngleRadians * 180.0 / M_PI;
+            zombieManager.zombies[i]->posCircle.x += velocityX * dt;
+            zombieManager.zombies[i]->posCircle.y += velocityY * dt;
+            zombieManager.zombies[i]->angle = playerZombieAngleDegrees;
         }
 
         double mouseAngleRadians = playerMouseAngle(&player.posCircle, &mousePos);
@@ -275,9 +307,33 @@ int main(void)
                 WHITE);
         }
 
-        DrawCircle(zombie.posCircle.x, zombie.posCircle.y, zombie.radius, BLACK);
-        DrawCircleGradient(zombie.posCircle.x, zombie.posCircle.y, zombieTexture.width / 2 + 3, RED, ORANGE);
-        DrawTexture(zombieTexture, zombie.posTexture.x, zombie.posTexture.y, WHITE);
+        for (int i = 0; i < zombieManager.count; i++)
+        {
+            if (!zombieManager.zombies[i]->active)
+                continue;
+            DrawCircle(
+                zombieManager.zombies[i]->posCircle.x,
+                zombieManager.zombies[i]->posCircle.y,
+                zombieManager.zombies[i]->radius,
+                BLACK);
+            DrawCircleGradient(
+                zombieManager.zombies[i]->posCircle.x,
+                zombieManager.zombies[i]->posCircle.y,
+                zombieTexture.width / 2 + 3,
+                RED,
+                ORANGE);
+            DrawTexturePro(
+                zombieTexture,
+                (Rectangle){0, 0, zombieTexture.width, zombieTexture.height},
+                (Rectangle){
+                    zombieManager.zombies[i]->posCircle.x,
+                    zombieManager.zombies[i]->posCircle.y,
+                    zombieTexture.width,
+                    zombieTexture.height},
+                (Vector2){zombieTexture.width / 2, zombieTexture.height / 2},
+                zombieManager.zombies[i]->angle,
+                WHITE);
+        }
 
         DrawTexture(targetTexture, mousePos.x - targetSize.x, mousePos.y - targetSize.y, WHITE);
 

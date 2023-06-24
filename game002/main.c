@@ -359,7 +359,7 @@ int main(void)
                 Bullet bullet;
                 double cosMouse = cos(mouseAngleRadians);
                 double sinMouse = sin(mouseAngleRadians);
-                bullet.bulletCategory = CATEGORY_BULLET;
+                bullet.bulletCategory = bulletManager.bulletCategory;
                 bullet.active = true;
                 bullet.pos.x = player.posCircle.x;
                 bullet.pos.y = player.posCircle.y;
@@ -382,10 +382,10 @@ int main(void)
             bulletManager.bulletCategory = CATEGORY_BULLET;
         }
 
-        // if (calcDist(&player.posCircle, &posBulletCategoryFire) <= (player.radius + .width / 2))
-        // {
-        //     bulletManager.bulletCategory = CATEGORY_BULLET;
-        // }
+        if (calcDist(&player.posCircle, &posBulletCategoryFire) <= (player.radius + fireSpritesheet.height / 2))
+        {
+            bulletManager.bulletCategory = CATEGORY_BULLET_FIRE;
+        }
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -425,14 +425,17 @@ int main(void)
             if (!bulletManager.bullets[i].active)
                 continue;
 
-            fireFrameRec.x = fireFrame * fireFrameRec.width;
-            // DrawTextureRec(
-            //     fireSpritesheet,
-            //     fireFrameRec,
-            //     (Vector2){
-            //         bulletManager.bullets[i].pos.x - fireFrameRec.width / 2,
-            //         bulletManager.bullets[i].pos.y - fireFrameRec.height / 2},
-            //     WHITE);
+            if (bulletManager.bullets[i].bulletCategory == CATEGORY_BULLET_FIRE)
+            {
+                fireFrameRec.x = fireFrame * fireFrameRec.width;
+                DrawTextureRec(
+                    fireSpritesheet,
+                    fireFrameRec,
+                    (Vector2){
+                        bulletManager.bullets[i].pos.x - fireFrameRec.width / 2,
+                        bulletManager.bullets[i].pos.y - fireFrameRec.height / 2},
+                    WHITE);
+            }
 
             DrawTexturePro(
                 bulletTexture,

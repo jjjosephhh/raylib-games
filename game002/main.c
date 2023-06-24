@@ -417,12 +417,14 @@ int main(void)
         DrawTexture(targetTexture, mousePos.x - targetSize.x, mousePos.y - targetSize.y, WHITE);
         for (int i = 0; i < player.ammoMax; i++)
         {
+            int bulletWidth = screenWidth - (i + 1) * (ammoTexture.width - 20) - 20;
+            int bulletHeight = screenHeight - ammoTexture.height - 10;
             if (i < player.ammo)
             {
                 DrawTexture(
                     ammoTexture,
-                    screenWidth - (i + 1) * (ammoTexture.width - 10),
-                    screenHeight - ammoTexture.height - 10,
+                    bulletWidth,
+                    bulletHeight,
                     WHITE);
             }
             else
@@ -430,13 +432,13 @@ int main(void)
                 DrawTexturePro(ammoTexture,
                                (Rectangle){0, 0, ammoTexture.width, ammoTexture.height},
                                (Rectangle){
-                                   screenWidth - (i + 1) * (ammoTexture.width - 10),
-                                   screenHeight - ammoTexture.height - 10,
+                                   bulletWidth,
+                                   bulletHeight,
                                    ammoTexture.width,
                                    ammoTexture.height},
                                (Vector2){0, 0},
                                0.0f,
-                               Fade(WHITE, 0.5f));
+                               Fade(WHITE, 0.25f));
             }
         }
         EndDrawing();

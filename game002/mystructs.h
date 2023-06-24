@@ -10,6 +10,7 @@ typedef struct
     float radius;
     float speed;
     int ammo;
+    int ammoMax;
 } Player;
 
 typedef struct

@@ -175,7 +175,8 @@ int main(void)
 
     // initialize entities
     Player player;
-    player.ammo = 3;
+    player.ammoMax = 5;
+    player.ammo = player.ammoMax;
     player.posCircle.x = screenWidth / 2;
     player.posCircle.y = screenHeight / 2;
     player.posTexture.x = player.posCircle.x - playerTexture.width / 2;
@@ -206,7 +207,6 @@ int main(void)
     zombieManager.screenHeight = screenHeight;
 
     float timer = MAX_TIME;
-
 
     HideCursor();
     while (!WindowShouldClose())
@@ -247,7 +247,7 @@ int main(void)
 
         if (IsKeyReleased(KEY_SPACE))
         {
-            player.ammo = 3;
+            player.ammo = player.ammoMax;
             PlaySound(reloadSound);
         }
 
@@ -349,7 +349,6 @@ int main(void)
             }
         }
 
-
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
@@ -416,13 +415,29 @@ int main(void)
         }
 
         DrawTexture(targetTexture, mousePos.x - targetSize.x, mousePos.y - targetSize.y, WHITE);
-        for (int i = 0; i < player.ammo; i++)
+        for (int i = 0; i < player.ammoMax; i++)
         {
-            DrawTexture(
-                ammoTexture,
-                screenWidth - (i + 1) * (ammoTexture.width - 10),
-                screenHeight - ammoTexture.height - 10,
-                WHITE);
+            if (i < player.ammo)
+            {
+                DrawTexture(
+                    ammoTexture,
+                    screenWidth - (i + 1) * (ammoTexture.width - 10),
+                    screenHeight - ammoTexture.height - 10,
+                    WHITE);
+            }
+            else
+            {
+                DrawTexturePro(ammoTexture,
+                               (Rectangle){0, 0, ammoTexture.width, ammoTexture.height},
+                               (Rectangle){
+                                   screenWidth - (i + 1) * (ammoTexture.width - 10),
+                                   screenHeight - ammoTexture.height - 10,
+                                   ammoTexture.width,
+                                   ammoTexture.height},
+                               (Vector2){0, 0},
+                               0.0f,
+                               Fade(WHITE, 0.5f));
+            }
         }
         EndDrawing();
     }

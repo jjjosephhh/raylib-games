@@ -9,6 +9,7 @@ typedef struct
     Vector2 posCircle;
     float radius;
     float speed;
+    int ammo;
 } Player;
 
 typedef struct

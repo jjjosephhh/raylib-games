@@ -45,7 +45,7 @@ int removeInactiveBullets(ZombieManager *zombieManager, BulletManager *bulletMan
     {
         Bullet *bullet = &bulletManager->bullets[i];
         deactivateIfOutOfBounds(
-            &bullet,
+            bullet,
             bulletManager->screenWidth,
             bulletManager->screenHeight);
 
@@ -162,12 +162,20 @@ int main(void)
     Texture2D bulletTexture = LoadTextureFromImage(bulletImage);
     UnloadImage(bulletImage);
 
+    Image ammoImage = LoadImage("resources/icons8-bullet-67.png");
+    ImageResize(&ammoImage, 60, 60);
+    Texture2D ammoTexture = LoadTextureFromImage(ammoImage);
+    UnloadImage(ammoImage);
+
     Sound hitSound = LoadSound("resources/mixkit-boxer-getting-hit-2055.wav");
     Sound bloodSound = LoadSound("resources/mixkit-game-blood-pop-slide-2363.wav");
     Sound gunSound = LoadSound("resources/mixkit-small-hit-in-a-game-2072.wav");
+    Sound gunCockSound = LoadSound("resources/revolvercock1-6924.mp3");
+    Sound reloadSound = LoadSound("resources/1911-reload-6248.mp3");
 
     // initialize entities
     Player player;
+    player.ammo = 3;
     player.posCircle.x = screenWidth / 2;
     player.posCircle.y = screenHeight / 2;
     player.posTexture.x = player.posCircle.x - playerTexture.width / 2;
@@ -198,6 +206,7 @@ int main(void)
     zombieManager.screenHeight = screenHeight;
 
     float timer = MAX_TIME;
+
 
     HideCursor();
     while (!WindowShouldClose())
@@ -234,6 +243,12 @@ int main(void)
         if (IsKeyDown(KEY_W))
         {
             player.posCircle.y -= player.speed * dt;
+        }
+
+        if (IsKeyReleased(KEY_SPACE))
+        {
+            player.ammo = 3;
+            PlaySound(reloadSound);
         }
 
         if (player.posCircle.x - player.radius < 0)
@@ -311,20 +326,29 @@ int main(void)
                     bulletManager.countMax * sizeof(Bullet));
             }
 
-            PlaySound(gunSound);
-            Bullet bullet;
-            double cosMouse = cos(mouseAngleRadians);
-            double sinMouse = sin(mouseAngleRadians);
-            bullet.active = true;
-            bullet.pos.x = player.posCircle.x;
-            bullet.pos.y = player.posCircle.y;
-            bullet.speed = 1000;
-            bullet.velocity.x = cosMouse * bullet.speed;
-            bullet.velocity.y = sinMouse * bullet.speed;
-            bullet.angle = mouseAngleDegrees + 90;
-            bulletManager.bullets[bulletManager.count] = bullet;
-            bulletManager.count++;
+            if (player.ammo > 0)
+            {
+                PlaySound(gunSound);
+                Bullet bullet;
+                double cosMouse = cos(mouseAngleRadians);
+                double sinMouse = sin(mouseAngleRadians);
+                bullet.active = true;
+                bullet.pos.x = player.posCircle.x;
+                bullet.pos.y = player.posCircle.y;
+                bullet.speed = 1000;
+                bullet.velocity.x = cosMouse * bullet.speed;
+                bullet.velocity.y = sinMouse * bullet.speed;
+                bullet.angle = mouseAngleDegrees + 90;
+                bulletManager.bullets[bulletManager.count] = bullet;
+                bulletManager.count++;
+                player.ammo--;
+            }
+            else
+            {
+                PlaySound(gunCockSound);
+            }
         }
+
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -392,7 +416,14 @@ int main(void)
         }
 
         DrawTexture(targetTexture, mousePos.x - targetSize.x, mousePos.y - targetSize.y, WHITE);
-
+        for (int i = 0; i < player.ammo; i++)
+        {
+            DrawTexture(
+                ammoTexture,
+                screenWidth - (i + 1) * (ammoTexture.width - 10),
+                screenHeight - ammoTexture.height - 10,
+                WHITE);
+        }
         EndDrawing();
     }
 
@@ -401,10 +432,13 @@ int main(void)
     UnloadTexture(zombieTexture);
     UnloadTexture(targetTexture);
     UnloadTexture(bulletTexture);
+    UnloadTexture(ammoTexture);
 
     UnloadSound(hitSound);
     UnloadSound(bloodSound);
     UnloadSound(gunSound);
+    UnloadSound(gunCockSound);
+    UnloadSound(reloadSound);
 
     // free any memory
     free(bulletManager.bullets);

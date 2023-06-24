@@ -167,6 +167,22 @@ int main(void)
     Texture2D ammoTexture = LoadTextureFromImage(ammoImage);
     UnloadImage(ammoImage);
 
+    Image bulletCategoryStandardImage = LoadImage("resources/icons8-bullet-64.png");
+    ImageResize(&bulletCategoryStandardImage, 60, 60);
+    Texture2D bulletCategoryStandardTexture = LoadTextureFromImage(bulletCategoryStandardImage);
+    UnloadImage(bulletCategoryStandardImage);
+
+    int fireFrameCount = 25;
+    Texture2D fireSpritesheet = LoadTexture("resources/spritesheet-fire.png");
+    Rectangle fireFrameRec = {
+        0,
+        0,
+        fireSpritesheet.width / fireFrameCount,
+        fireSpritesheet.height};
+    int fireFrame = 0;
+    int fireFrameCounter = 0;
+    int fireFrameSpeed = 60 / fireFrameCount;
+
     Sound hitSound = LoadSound("resources/mixkit-boxer-getting-hit-2055.wav");
     Sound bloodSound = LoadSound("resources/mixkit-game-blood-pop-slide-2363.wav");
     Sound gunSound = LoadSound("resources/mixkit-small-hit-in-a-game-2072.wav");
@@ -189,6 +205,7 @@ int main(void)
     targetSize.y = targetTexture.height / 2;
 
     BulletManager bulletManager;
+    bulletManager.bulletCategory = CATEGORY_BULLET;
     bulletManager.bullets = NULL;
     bulletManager.count = 0;
     bulletManager.countMax = 0;
@@ -206,11 +223,21 @@ int main(void)
     zombieManager.screenWidth = screenWidth;
     zombieManager.screenHeight = screenHeight;
 
+    Vector2 posBulletCategoryStandard = {100, 100};
+    Vector2 posBulletCategoryFire = {screenWidth - 100, screenHeight - 300};
+
     float timer = MAX_TIME;
 
     HideCursor();
     while (!WindowShouldClose())
     {
+        fireFrameCounter++;
+        if (fireFrameCounter >= fireFrameSpeed)
+        {
+            fireFrameCounter = 0;
+            fireFrame = (fireFrame + 1) % fireFrameCount;
+        }
+
         Vector2 mousePos = GetMousePosition();
         float dt = GetFrameTime();
         timer -= dt;
@@ -245,7 +272,7 @@ int main(void)
             player.posCircle.y -= player.speed * dt;
         }
 
-        if (IsKeyReleased(KEY_SPACE))
+        if (IsKeyReleased(KEY_SPACE) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
         {
             player.ammo = player.ammoMax;
             PlaySound(reloadSound);
@@ -332,10 +359,11 @@ int main(void)
                 Bullet bullet;
                 double cosMouse = cos(mouseAngleRadians);
                 double sinMouse = sin(mouseAngleRadians);
+                bullet.bulletCategory = CATEGORY_BULLET;
                 bullet.active = true;
                 bullet.pos.x = player.posCircle.x;
                 bullet.pos.y = player.posCircle.y;
-                bullet.speed = 1000;
+                bullet.speed = 500;
                 bullet.velocity.x = cosMouse * bullet.speed;
                 bullet.velocity.y = sinMouse * bullet.speed;
                 bullet.angle = mouseAngleDegrees + 90;
@@ -349,9 +377,33 @@ int main(void)
             }
         }
 
+        if (calcDist(&player.posCircle, &posBulletCategoryStandard) <= (player.radius + bulletCategoryStandardTexture.width / 2))
+        {
+            bulletManager.bulletCategory = CATEGORY_BULLET;
+        }
+
+        // if (calcDist(&player.posCircle, &posBulletCategoryFire) <= (player.radius + .width / 2))
+        // {
+        //     bulletManager.bulletCategory = CATEGORY_BULLET;
+        // }
+
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
+
+        DrawTexture(
+            bulletCategoryStandardTexture,
+            posBulletCategoryStandard.x,
+            posBulletCategoryStandard.y,
+            WHITE);
+
+        fireFrameRec.x = fireFrame * fireFrameRec.width;
+        DrawTextureRec(
+            fireSpritesheet,
+            fireFrameRec,
+            (Vector2){
+                posBulletCategoryFire.x,
+                posBulletCategoryFire.y},
+            WHITE);
 
         DrawCircle(player.posCircle.x, player.posCircle.y, player.radius, BLACK);
         DrawCircleGradient(player.posCircle.x, player.posCircle.y, playerTexture.width / 2 + 3, GREEN, SKYBLUE);
@@ -372,6 +424,16 @@ int main(void)
         {
             if (!bulletManager.bullets[i].active)
                 continue;
+
+            fireFrameRec.x = fireFrame * fireFrameRec.width;
+            // DrawTextureRec(
+            //     fireSpritesheet,
+            //     fireFrameRec,
+            //     (Vector2){
+            //         bulletManager.bullets[i].pos.x - fireFrameRec.width / 2,
+            //         bulletManager.bullets[i].pos.y - fireFrameRec.height / 2},
+            //     WHITE);
+
             DrawTexturePro(
                 bulletTexture,
                 (Rectangle){0, 0, bulletTexture.width, bulletTexture.height},
@@ -450,6 +512,8 @@ int main(void)
     UnloadTexture(targetTexture);
     UnloadTexture(bulletTexture);
     UnloadTexture(ammoTexture);
+    UnloadTexture(fireSpritesheet);
+    UnloadTexture(bulletCategoryStandardTexture);
 
     UnloadSound(hitSound);
     UnloadSound(bloodSound);

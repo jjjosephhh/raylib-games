@@ -3,6 +3,12 @@
 #include "constants.h"
 #include "raylib.h"
 
+typedef enum {
+    CATEGORY_BULLET,
+    CATEGORY_BULLET_FIRE,
+    CATEGORY_BULLET_ICE
+} BulletCategory;
+
 typedef struct
 {
     Vector2 posTexture;
@@ -41,6 +47,7 @@ typedef struct
     double angle;
     bool active;
     int damage;
+    BulletCategory bulletCategory;
 } Bullet;
 
 typedef struct
@@ -52,4 +59,5 @@ typedef struct
     float height;
     int screenWidth;
     int screenHeight;
+    BulletCategory bulletCategory;
 } BulletManager;

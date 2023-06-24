@@ -22,12 +22,6 @@ float playerMouseAngle(Vector2 *p1, Vector2 *p2)
     return atan2(deltaY, deltaX);
 }
 
-void addBullet(BulletManager *bulletManager, Bullet *bullet)
-{
-    bulletManager->bullets[bulletManager->count] = bullet;
-    bulletManager->count++;
-}
-
 void deactivateIfOutOfBounds(Bullet *bullet, int screenWidth, int screenHeight)
 {
     if (bullet->pos.x < 0 || bullet->pos.y < 0 || bullet->pos.x > screenWidth || bullet->pos.y > screenHeight)
@@ -49,22 +43,18 @@ int removeInactiveBullets(ZombieManager *zombieManager, BulletManager *bulletMan
     int activeBulletCount = 0;
     for (int i = 0; i < bulletManager->count; i++)
     {
-        Bullet *bullet = bulletManager->bullets[i];
-        if (bullet == NULL)
-            continue;
+        Bullet *bullet = &bulletManager->bullets[i];
         deactivateIfOutOfBounds(
-            bullet,
+            &bullet,
             bulletManager->screenWidth,
             bulletManager->screenHeight);
 
         for (int j = 0; j < zombieManager->count; j++)
         {
-            Zombie *zombie = zombieManager->zombies[j];
-            if (zombie == NULL || !zombie->active)
+            Zombie *zombie = &zombieManager->zombies[j];
+            if (!zombie->active)
                 continue;
-            float distBtw = calcDist(
-                &zombie->posCircle,
-                &bullet->pos);
+            float distBtw = calcDist(&zombie->posCircle, &bullet->pos);
             if (distBtw < (bulletManager->width / 2 + zombieManager->width / 2))
             {
                 zombie->active = false;
@@ -76,45 +66,27 @@ int removeInactiveBullets(ZombieManager *zombieManager, BulletManager *bulletMan
         {
             if (activeBulletCount != i)
             {
-                Bullet *bulletToFree = bulletManager->bullets[activeBulletCount];
-                bulletManager->bullets[activeBulletCount] = bullet;
+                Bullet bulletToFree = bulletManager->bullets[activeBulletCount];
+                bulletManager->bullets[activeBulletCount] = *bullet;
                 bulletManager->bullets[i] = bulletToFree;
             }
             activeBulletCount++;
         }
     }
-    for (int i = activeBulletCount; i < bulletManager->count; i++)
-    {
-        Bullet *bullet = bulletManager->bullets[i];
-        if (bullet != NULL && !bullet->active)
-        {
-            free(bullet);
-        }
-    }
     bulletManager->count = activeBulletCount;
-
     int activeZombieCount = 0;
     for (int i = 0; i < zombieManager->count; i++)
     {
-        Zombie *zombie = zombieManager->zombies[i];
-        if (zombie->active)
+        Zombie zombie = zombieManager->zombies[i];
+        if (zombie.active)
         {
             if (activeZombieCount != i)
             {
-                Zombie *zombieToFree = zombieManager->zombies[activeZombieCount];
+                Zombie zombieToFree = zombieManager->zombies[activeZombieCount];
                 zombieManager->zombies[activeZombieCount] = zombie;
                 zombieManager->zombies[i] = zombieToFree;
             }
             activeZombieCount++;
-        }
-    }
-
-    for (int i = activeZombieCount; i < zombieManager->count; i++)
-    {
-        Zombie *zombie = zombieManager->zombies[i];
-        if (zombie != NULL && !zombie->active)
-        {
-            free(zombie);
         }
     }
 
@@ -125,47 +97,40 @@ int removeInactiveBullets(ZombieManager *zombieManager, BulletManager *bulletMan
 
 void addZombie(ZombieManager *zombieManager, int screenWidth, int screenHeight)
 {
-    printf("inside the addZombie function\n");
-
-    if (zombieManager->count >= MAX_ZOMBIES)
-    {
-        return;
-    }
-    Zombie *zombie = malloc(sizeof(Zombie));
-
+    Zombie zombie;
     int side = getRandInt(1, 4);
     if (side == 1)
     {
-        zombie->posCircle.x = getRandInt(
+        zombie.posCircle.x = getRandInt(
             zombieManager->width / 2,
             zombieManager->screenWidth - zombieManager->width / 2);
-        zombie->posCircle.y = -zombieManager->height / 2;
+        zombie.posCircle.y = -zombieManager->height / 2;
     }
     else if (side == 2)
     {
-        zombie->posCircle.x = -zombieManager->width / 2;
-        zombie->posCircle.y = getRandInt(
+        zombie.posCircle.x = -zombieManager->width / 2;
+        zombie.posCircle.y = getRandInt(
             zombieManager->height / 2,
             zombieManager->screenHeight - zombieManager->height / 2);
     }
     else if (side == 3)
     {
-        zombie->posCircle.x = getRandInt(
+        zombie.posCircle.x = getRandInt(
             zombieManager->width / 2,
             zombieManager->screenWidth - zombieManager->width / 2);
-        zombie->posCircle.y = zombieManager->screenHeight + zombieManager->height / 2;
+        zombie.posCircle.y = zombieManager->screenHeight + zombieManager->height / 2;
     }
     else if (side == 4)
     {
-        zombie->posCircle.x = zombieManager->screenWidth + zombieManager->width / 2;
-        zombie->posCircle.y = getRandInt(
+        zombie.posCircle.x = zombieManager->screenWidth + zombieManager->width / 2;
+        zombie.posCircle.y = getRandInt(
             zombieManager->height / 2,
             zombieManager->screenHeight - zombieManager->height / 2);
     }
-    zombie->posTexture.x = zombie->posCircle.x - zombieManager->width / 2;
-    zombie->posTexture.y = zombie->posCircle.y - zombieManager->height / 2;
-    zombie->radius = zombieManager->width / 2 + 7;
-    zombie->active = true;
+    zombie.posTexture.x = zombie.posCircle.x - zombieManager->width / 2;
+    zombie.posTexture.y = zombie.posCircle.y - zombieManager->height / 2;
+    zombie.radius = zombieManager->width / 2 + 7;
+    zombie.active = true;
     zombieManager->zombies[zombieManager->count] = zombie;
     zombieManager->count++;
 }
@@ -210,26 +175,23 @@ int main(void)
     player.radius = playerTexture.width / 2 + 7;
     player.speed = 6 * 60;
 
-    Zombie zombie;
-    zombie.posCircle.x = screenWidth / 2 + 200;
-    zombie.posCircle.y = screenHeight / 2 + 200;
-    zombie.posTexture.x = zombie.posCircle.x - zombieTexture.width / 2;
-    zombie.posTexture.y = zombie.posCircle.y - zombieTexture.height / 2;
-    zombie.radius = zombieTexture.width / 2 + 7;
-
     Vector2 targetSize;
     targetSize.x = targetTexture.width / 2;
     targetSize.y = targetTexture.height / 2;
 
     BulletManager bulletManager;
+    bulletManager.bullets = NULL;
     bulletManager.count = 0;
+    bulletManager.countMax = 0;
     bulletManager.width = bulletTexture.width;
     bulletManager.height = bulletTexture.height;
     bulletManager.screenWidth = screenWidth;
     bulletManager.screenHeight = screenHeight;
 
     ZombieManager zombieManager;
+    zombieManager.zombies = NULL;
     zombieManager.count = 0;
+    zombieManager.countMax = 0;
     zombieManager.width = zombieTexture.width;
     zombieManager.height = zombieTexture.height;
     zombieManager.screenWidth = screenWidth;
@@ -246,6 +208,11 @@ int main(void)
         if (timer <= 0)
         {
             timer = MAX_TIME;
+            if (zombieManager.count + 1 > zombieManager.countMax)
+            {
+                zombieManager.countMax = 2 * zombieManager.count + 1;
+                zombieManager.zombies = realloc(zombieManager.zombies, zombieManager.countMax * sizeof(Zombie));
+            }
             addZombie(&zombieManager, screenWidth, screenHeight);
         }
 
@@ -288,10 +255,10 @@ int main(void)
 
         for (int i = 0; i < bulletManager.count; i++)
         {
-            Bullet *bullet = bulletManager.bullets[i];
-            if (bullet->pos.x < 0 || bullet->pos.y < 0 || bullet->pos.x > screenWidth || bullet->pos.y > screenHeight)
+            Bullet bullet = bulletManager.bullets[i];
+            if (bullet.pos.x < 0 || bullet.pos.y < 0 || bullet.pos.x > screenWidth || bullet.pos.y > screenHeight)
             {
-                bullet->active = false;
+                bullet.active = false;
             }
         }
 
@@ -307,26 +274,27 @@ int main(void)
 
         for (int i = 0; i < bulletManager.count; i++)
         {
-            if (!bulletManager.bullets[i]->active)
+            if (!bulletManager.bullets[i].active)
                 continue;
-            bulletManager.bullets[i]->pos.x += bulletManager.bullets[i]->velocity.x * dt;
-            bulletManager.bullets[i]->pos.y += bulletManager.bullets[i]->velocity.y * dt;
+            bulletManager.bullets[i].pos.x += bulletManager.bullets[i].velocity.x * dt;
+            bulletManager.bullets[i].pos.y += bulletManager.bullets[i].velocity.y * dt;
         }
 
         for (int i = 0; i < zombieManager.count; i++)
         {
-            if (!zombieManager.zombies[i]->active)
+            Zombie *zombie = &zombieManager.zombies[i];
+            if (!zombie->active)
                 continue;
 
-            float playerZombieAngleRadians = playerMouseAngle(&player.posCircle, &zombieManager.zombies[i]->posCircle);
+            float playerZombieAngleRadians = playerMouseAngle(&player.posCircle, &zombie->posCircle);
             double cosPlayerZombie = cos(playerZombieAngleRadians);
             double sinPlayerZombie = sin(playerZombieAngleRadians);
             float velocityX = -cosPlayerZombie * SPEED_ZOMBIE;
             float velocityY = -sinPlayerZombie * SPEED_ZOMBIE;
             double playerZombieAngleDegrees = playerZombieAngleRadians * 180.0 / M_PI;
-            zombieManager.zombies[i]->posCircle.x += velocityX * dt;
-            zombieManager.zombies[i]->posCircle.y += velocityY * dt;
-            zombieManager.zombies[i]->angle = playerZombieAngleDegrees;
+            zombie->posCircle.x += velocityX * dt;
+            zombie->posCircle.y += velocityY * dt;
+            zombie->angle = playerZombieAngleDegrees;
         }
 
         double mouseAngleRadians = playerMouseAngle(&player.posCircle, &mousePos);
@@ -334,26 +302,28 @@ int main(void)
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            if (bulletManager.count < MAX_BULLETS)
+
+            if (bulletManager.count + 1 > bulletManager.countMax)
             {
-                PlaySound(gunSound);
-                Bullet *bullet = malloc(sizeof(Bullet));
-                if (bullet == NULL)
-                {
-                    printf("Failed to allocate memory for new bullet\n");
-                    return 1;
-                }
-                double cosMouse = cos(mouseAngleRadians);
-                double sinMouse = sin(mouseAngleRadians);
-                bullet->active = true;
-                bullet->pos.x = player.posCircle.x;
-                bullet->pos.y = player.posCircle.y;
-                bullet->speed = 1000;
-                bullet->velocity.x = cosMouse * bullet->speed;
-                bullet->velocity.y = sinMouse * bullet->speed;
-                bullet->angle = mouseAngleDegrees + 90;
-                addBullet(&bulletManager, bullet);
+                bulletManager.countMax = 2 * bulletManager.count + 1;
+                bulletManager.bullets = realloc(
+                    bulletManager.bullets,
+                    bulletManager.countMax * sizeof(Bullet));
             }
+
+            PlaySound(gunSound);
+            Bullet bullet;
+            double cosMouse = cos(mouseAngleRadians);
+            double sinMouse = sin(mouseAngleRadians);
+            bullet.active = true;
+            bullet.pos.x = player.posCircle.x;
+            bullet.pos.y = player.posCircle.y;
+            bullet.speed = 1000;
+            bullet.velocity.x = cosMouse * bullet.speed;
+            bullet.velocity.y = sinMouse * bullet.speed;
+            bullet.angle = mouseAngleDegrees + 90;
+            bulletManager.bullets[bulletManager.count] = bullet;
+            bulletManager.count++;
         }
 
         BeginDrawing();
@@ -377,33 +347,34 @@ int main(void)
 
         for (int i = 0; i < bulletManager.count; i++)
         {
-            if (!bulletManager.bullets[i]->active)
+            if (!bulletManager.bullets[i].active)
                 continue;
             DrawTexturePro(
                 bulletTexture,
                 (Rectangle){0, 0, bulletTexture.width, bulletTexture.height},
                 (Rectangle){
-                    bulletManager.bullets[i]->pos.x,
-                    bulletManager.bullets[i]->pos.y,
+                    bulletManager.bullets[i].pos.x,
+                    bulletManager.bullets[i].pos.y,
                     bulletTexture.width,
                     bulletTexture.height},
                 (Vector2){bulletTexture.width / 2, bulletTexture.height / 2},
-                bulletManager.bullets[i]->angle,
+                bulletManager.bullets[i].angle,
                 WHITE);
         }
 
         for (int i = 0; i < zombieManager.count; i++)
         {
-            if (!zombieManager.zombies[i]->active)
+            Zombie zombie = zombieManager.zombies[i];
+            if (!zombie.active)
                 continue;
             DrawCircle(
-                zombieManager.zombies[i]->posCircle.x,
-                zombieManager.zombies[i]->posCircle.y,
-                zombieManager.zombies[i]->radius,
+                zombie.posCircle.x,
+                zombie.posCircle.y,
+                zombie.radius,
                 BLACK);
             DrawCircleGradient(
-                zombieManager.zombies[i]->posCircle.x,
-                zombieManager.zombies[i]->posCircle.y,
+                zombie.posCircle.x,
+                zombie.posCircle.y,
                 zombieTexture.width / 2 + 3,
                 RED,
                 ORANGE);
@@ -411,12 +382,12 @@ int main(void)
                 zombieTexture,
                 (Rectangle){0, 0, zombieTexture.width, zombieTexture.height},
                 (Rectangle){
-                    zombieManager.zombies[i]->posCircle.x,
-                    zombieManager.zombies[i]->posCircle.y,
+                    zombie.posCircle.x,
+                    zombie.posCircle.y,
                     zombieTexture.width,
                     zombieTexture.height},
                 (Vector2){zombieTexture.width / 2, zombieTexture.height / 2},
-                zombieManager.zombies[i]->angle,
+                zombie.angle,
                 WHITE);
         }
 
@@ -434,6 +405,10 @@ int main(void)
     UnloadSound(hitSound);
     UnloadSound(bloodSound);
     UnloadSound(gunSound);
+
+    // free any memory
+    free(bulletManager.bullets);
+    free(zombieManager.zombies);
 
     CloseAudioDevice();
     CloseWindow();

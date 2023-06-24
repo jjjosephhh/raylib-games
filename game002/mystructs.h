@@ -22,8 +22,9 @@ typedef struct
 
 typedef struct
 {
-    Zombie *zombies[MAX_ZOMBIES];
+    Zombie *zombies;
     int count;
+    int countMax;
     float width;
     float height;
     int screenWidth;
@@ -37,12 +38,14 @@ typedef struct
     float speed;
     double angle;
     bool active;
+    int damage;
 } Bullet;
 
 typedef struct
 {
-    Bullet *bullets[MAX_BULLETS];
+    Bullet *bullets;
     int count;
+    int countMax;
     float width;
     float height;
     int screenWidth;
